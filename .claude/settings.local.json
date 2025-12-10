@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(xargs:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(./mvnw clean:*)",
+      "Bash(mvn clean compile:*)",
+      "Bash(/Users/wulei/Downloads/apache-maven-3.9.11/bin/mvn clean compile:*)"
+    ]
+  }
+}
