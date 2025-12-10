@@ -13,13 +13,13 @@ public class TradingExample {
     public static void main(String[] args) {
         String host = "https://clob.polymarket.com";
         int chainId = 137;
-        String privateKey = "";
-        String funder = "";
+        String privateKey = "pk";
+        String funder = "0xC73b9bFd587758e-XXXXX";
 
         ApiCreds apiCreds = new ApiCreds(
-                "019b01ad-4e92-7ee1-b46f-bd1848f9d5eb",
-                "",
-                ""
+                "06f15283-7422-fd5d-d9ec-XXXXXXXX",
+                "JodYp1WM1B5AvGVb4yJcW-XXXXXXXXXX",
+                "544e5baeaea83d1c59e549d56a9e845ea8-XXXXXXXXXXXXX"
         );
         ClobClient client = new ClobClient(
             host,
@@ -35,16 +35,16 @@ public class TradingExample {
         client.setApiCreds(apiCreds);
 
         // Place a limit order
-        OrderArgs orderArgs = new OrderArgs(
-            "54775592769957176366862252981703555601401893078926681487143337065519380300006",  // Get a token ID from the Markets API
-            0.01,          // Price
-            5.0,           // Size
-            OrderSide.BUY
-        );
-        
-        Map<String, Object> signedOrder = client.createOrder(orderArgs, null);
-        Object response = client.postOrder(signedOrder, OrderType.GTC);
-        
+//        OrderArgs orderArgs = new OrderArgs(
+//            "47492224027673272587268533486557465128360198441334379196064037756821146202",  // Get a token ID from the Markets API
+//            0.5,          // Price
+//            5.0,           // Size
+//            OrderSide.BUY
+//        );
+//
+//        Map<String, Object> signedOrder = client.createOrder(orderArgs, null);
+//        Object response = client.postOrder(signedOrder, OrderType.GTC);
+        Object response = client.getOrder("0x6a642a5f9f9ac6e8b5ab6f3543122a2a0b68d84fd03db2b5fde0452946292d04");
         System.out.println("Order posted: " + response);
     }
 }

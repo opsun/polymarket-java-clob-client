@@ -36,7 +36,8 @@ public final class HmacSigner {
             }
 
             byte[] hash = mac.doFinal(message.toString().getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+            // Keep Base64 padding to match Python's behavior
+            return Base64.getUrlEncoder().encodeToString(hash);
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate HMAC signature", e);
         }

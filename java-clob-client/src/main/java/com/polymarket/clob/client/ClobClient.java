@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.polymarket.clob.config.Config;
 import com.polymarket.clob.constants.Constants;
 import com.polymarket.clob.constants.Endpoints;
+import com.polymarket.clob.exceptions.PolyApiException;
 import com.polymarket.clob.exceptions.PolyException;
 import com.polymarket.clob.headers.Headers;
 import com.polymarket.clob.httphelpers.HttpHelpers;
@@ -107,9 +108,9 @@ public class ClobClient {
         String endpoint = host + Endpoints.CREATE_API_KEY;
         Map<String, String> headers = Headers.createLevel1Headers(signer, nonce);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> credsRaw = (Map<String, Object>) HttpHelpers.post(endpoint, headers, null);
-        
+        Object response = HttpHelpers.post(endpoint, headers, null);
+        Map<String, Object> credsRaw = parseMapResponse(response, "Failed to parse created CLOB creds");
+
         try {
             return new ApiCreds(
                 (String) credsRaw.get("apiKey"),
@@ -127,9 +128,9 @@ public class ClobClient {
         String endpoint = host + Endpoints.DERIVE_API_KEY;
         Map<String, String> headers = Headers.createLevel1Headers(signer, nonce);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> credsRaw = (Map<String, Object>) HttpHelpers.get(endpoint, headers);
-        
+        Object response = HttpHelpers.get(endpoint, headers);
+        Map<String, Object> credsRaw = parseMapResponse(response, "Failed to parse derived CLOB creds");
+
         try {
             return new ApiCreds(
                 (String) credsRaw.get("apiKey"),
@@ -455,26 +456,62 @@ public class ClobClient {
     }
 
     public OrderBookSummary getOrderBook(String tokenId) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> rawObs = (Map<String, Object>) HttpHelpers.get(
+        Object response = HttpHelpers.get(
             host + Endpoints.GET_ORDER_BOOK + "?token_id=" + tokenId, null
         );
-        return Utilities.parseRawOrderbookSummary(rawObs);
+
+        // Handle the response based on its actual type
+        if (response instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> rawObs = (Map<String, Object>) response;
+            return Utilities.parseRawOrderbookSummary(rawObs);
+        } else if (response instanceof String) {
+            // If the response is a String, try to parse it as JSON
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> rawObs = objectMapper.readValue((String) response, Map.class);
+                return Utilities.parseRawOrderbookSummary(rawObs);
+            } catch (Exception e) {
+                throw new PolyApiException("Failed to parse order book response: " + e.getMessage());
+            }
+        } else {
+            throw new PolyApiException("Unexpected response type: " +
+                (response != null ? response.getClass().getName() : "null"));
+        }
     }
 
     public List<OrderBookSummary> getOrderBooks(List<BookParams> params) {
         List<Map<String, String>> body = params.stream()
             .map(p -> Map.of("token_id", p.tokenId()))
             .collect(Collectors.toList());
-        
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> rawObsList = (List<Map<String, Object>>) HttpHelpers.post(
-            host + Endpoints.GET_ORDER_BOOKS, null, body
-        );
-        
-        return rawObsList.stream()
-            .map(Utilities::parseRawOrderbookSummary)
-            .collect(Collectors.toList());
+
+        Object response = HttpHelpers.post(host + Endpoints.GET_ORDER_BOOKS, null, body);
+
+        // Handle the response based on its actual type
+        if (response instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> rawObsList = (List<Map<String, Object>>) response;
+            return rawObsList.stream()
+                .map(Utilities::parseRawOrderbookSummary)
+                .collect(Collectors.toList());
+        } else if (response instanceof String) {
+            // If the response is a String, try to parse it as JSON
+            try {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> rawObsList = objectMapper.readValue(
+                    (String) response,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class)
+                );
+                return rawObsList.stream()
+                    .map(Utilities::parseRawOrderbookSummary)
+                    .collect(Collectors.toList());
+            } catch (Exception e) {
+                throw new PolyApiException("Failed to parse order books response: " + e.getMessage());
+            }
+        } else {
+            throw new PolyApiException("Unexpected response type: " +
+                (response != null ? response.getClass().getName() : "null"));
+        }
     }
 
     public Object postOrder(Map<String, Object> order, OrderType orderType) {
@@ -608,11 +645,11 @@ public class ClobClient {
             String url = HttpHelpers.addQueryOpenOrdersParams(
                 host + Endpoints.ORDERS, params, cursor
             );
-            
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = (Map<String, Object>) HttpHelpers.get(url, headers);
+
+            Object rawResponse = HttpHelpers.get(url, headers);
+            Map<String, Object> response = parseMapResponse(rawResponse, "Failed to parse open orders response");
             cursor = (String) response.get("next_cursor");
-            
+
             @SuppressWarnings("unchecked")
             List<Object> data = (List<Object>) response.get("data");
             if (data != null) {
@@ -645,11 +682,11 @@ public class ClobClient {
             String url = HttpHelpers.addQueryTradeParams(
                 host + Endpoints.TRADES, params, cursor
             );
-            
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = (Map<String, Object>) HttpHelpers.get(url, headers);
+
+            Object rawResponse = HttpHelpers.get(url, headers);
+            Map<String, Object> response = parseMapResponse(rawResponse, "Failed to parse trades response");
             cursor = (String) response.get("next_cursor");
-            
+
             @SuppressWarnings("unchecked")
             List<Object> data = (List<Object>) response.get("data");
             if (data != null) {
@@ -798,6 +835,23 @@ public class ClobClient {
 
     public Object getMarketTradesEvents(String conditionId) {
         return HttpHelpers.get(host + Endpoints.GET_MARKET_TRADES_EVENTS + conditionId, null);
+    }
+
+    // Helper method to parse Map response from HTTP requests
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseMapResponse(Object response, String errorMessage) {
+        if (response instanceof Map) {
+            return (Map<String, Object>) response;
+        } else if (response instanceof String) {
+            try {
+                return objectMapper.readValue((String) response, Map.class);
+            } catch (Exception e) {
+                throw new PolyApiException(errorMessage + ": " + e.getMessage());
+            }
+        } else {
+            throw new PolyApiException("Unexpected response type: " +
+                (response != null ? response.getClass().getName() : "null"));
+        }
     }
 
     public String getOrderBookHash(OrderBookSummary orderbook) {

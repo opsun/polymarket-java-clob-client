@@ -3,14 +3,9 @@ package com.polymarket.clob.utilities;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.polymarket.clob.types.*;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Utility functions for order processing
@@ -92,7 +87,7 @@ public final class Utilities {
     }
 
     public static Map<String, Object> orderToJson(Map<String, Object> order, String owner, OrderType orderType) {
-        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> result = new LinkedHashMap<>(3);
         result.put("order", order);
         result.put("owner", owner);
         result.put("orderType", orderType.getValue());

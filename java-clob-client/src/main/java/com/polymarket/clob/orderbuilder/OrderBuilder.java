@@ -9,10 +9,7 @@ import com.polymarket.orderutils.UtilsSigner;
 import com.polymarket.orderutils.builders.UtilsOrderBuilder;
 import com.polymarket.orderutils.model.OrderData;
 import com.polymarket.orderutils.model.SignedOrder;
-import org.web3j.utils.Numeric;
 
-import java.math.BigInteger;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 

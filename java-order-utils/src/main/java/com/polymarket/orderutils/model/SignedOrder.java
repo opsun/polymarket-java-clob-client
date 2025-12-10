@@ -24,7 +24,7 @@ public class SignedOrder {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
 
-        map.put("salt", order.getSalt().toString());
+        map.put("salt", order.getSalt());
         map.put("maker", order.getMaker());
         map.put("signer", order.getSigner());
         map.put("taker", order.getTaker());

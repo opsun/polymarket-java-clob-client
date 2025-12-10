@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.polymarket.clob.exceptions.PolyApiException;
 import com.polymarket.clob.types.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
@@ -15,6 +16,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 /**
  * HTTP helper functions for API requests
@@ -45,7 +47,7 @@ public final class HttpHelpers {
         Map<String, String> result = headers != null ? new java.util.HashMap<>(headers) : new java.util.HashMap<>();
         result.put("User-Agent", "py_clob_client");
         result.put("Accept", "*/*");
-        //result.put("Connection", "keep-alive");
+//        result.put("Connection", "keep-alive");
         result.put("Content-Type", "application/json");
 
         if ("GET".equals(method)) {
@@ -66,24 +68,56 @@ public final class HttpHelpers {
             finalHeaders.forEach(requestBuilder::header);
 
             HttpRequest request = requestBuilder.build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            // Use byte array handler to properly handle gzip compressed responses
+            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
             if (response.statusCode() != 200) {
-                throw new PolyApiException(response.statusCode(), response.body());
+                String bodyStr = new String(response.body(), StandardCharsets.UTF_8);
+                throw new PolyApiException(response.statusCode(), bodyStr);
             }
 
             try {
-                String body = response.body();
+                // Check if response is gzip compressed
+                String contentEncoding = response.headers().firstValue("Content-Encoding").orElse("");
+                byte[] bodyBytes = response.body();
+                String body;
+
+                if ("gzip".equalsIgnoreCase(contentEncoding)) {
+                    // Decompress gzip response
+                    body = decompressGzip(bodyBytes);
+                } else {
+                    // Plain text response
+                    body = new String(bodyBytes, StandardCharsets.UTF_8);
+                }
+
                 if (body == null || body.trim().isEmpty()) {
                     return body;
                 }
                 // Try to parse as JSON
                 return objectMapper.readValue(body, Object.class);
             } catch (Exception e) {
-                return response.body();
+                // If JSON parsing fails, return the raw string
+                String contentEncoding = response.headers().firstValue("Content-Encoding").orElse("");
+                if ("gzip".equalsIgnoreCase(contentEncoding)) {
+                    return decompressGzip(response.body());
+                } else {
+                    return new String(response.body(), StandardCharsets.UTF_8);
+                }
             }
         } catch (IOException | InterruptedException e) {
             throw new PolyApiException("Request exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Decompress gzip compressed data
+     */
+    private static String decompressGzip(byte[] compressed) {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
+             GZIPInputStream gis = new GZIPInputStream(bis)) {
+            return new String(gis.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new PolyApiException("Failed to decompress gzip response: " + e.getMessage());
         }
     }
 

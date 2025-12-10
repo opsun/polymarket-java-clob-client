@@ -105,7 +105,12 @@ public abstract class BaseBuilder {
         System.arraycopy(nameHash, 0, encoded, 32, 32);
         System.arraycopy(versionHash, 0, encoded, 64, 32);
         System.arraycopy(Numeric.toBytesPadded(domain.chainId, 32), 0, encoded, 96, 32);
-        System.arraycopy(Numeric.hexStringToByteArray(domain.verifyingContract), 0, encoded, 116, 20);
+
+        // Address needs to be padded to 32 bytes (left-padded with zeros)
+        // Convert address to BigInteger and pad to 32 bytes
+        byte[] addressBytes = Numeric.hexStringToByteArray(domain.verifyingContract);
+        byte[] addressPadded = Numeric.toBytesPadded(new BigInteger(1, addressBytes), 32);
+        System.arraycopy(addressPadded, 0, encoded, 128, 32);
 
         return Hash.sha3(encoded);
     }
@@ -121,6 +126,8 @@ public abstract class BaseBuilder {
 
         System.arraycopy(typeHash, 0, encoded, 0, 32);
         System.arraycopy(Numeric.toBytesPadded(order.getSalt(), 32), 0, encoded, 32, 32);
+        //System.arraycopy(Numeric.toBytesPadded(order.getSalt(), 32), 0, encoded, 32, 32);
+        //System.arraycopy(Numeric.toBytesPadded(new BigInteger(order.getSalt().substring(2), 16), 32), 0, encoded, 64, 32);
         System.arraycopy(Numeric.toBytesPadded(new BigInteger(order.getMaker().substring(2), 16), 32), 0, encoded, 64, 32);
         System.arraycopy(Numeric.toBytesPadded(new BigInteger(order.getSigner().substring(2), 16), 32), 0, encoded, 96, 32);
         System.arraycopy(Numeric.toBytesPadded(new BigInteger(order.getTaker().substring(2), 16), 32), 0, encoded, 128, 32);
