@@ -2,7 +2,7 @@ package com.polymarket.clob.signer;
 
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.ECKeyPair;
-import org.web3j.crypto.Keys;
+import org.web3j.crypto.Sign;
 import org.web3j.utils.Numeric;
 
 import java.math.BigInteger;
@@ -46,27 +46,26 @@ public class Signer {
         return credentials;
     }
 
-    /**
-     * Signs a message hash
-     */
     public String sign(String messageHash) {
-        // Remove 0x prefix if present
-        String cleanHash = messageHash.startsWith("0x") ? messageHash.substring(2) : messageHash;
-        BigInteger hashInt = new BigInteger(cleanHash, 16);
-        
-        org.web3j.crypto.Sign.SignatureData signatureData = 
-            org.web3j.crypto.Sign.signMessage(hashInt.toByteArray(), credentials.getEcKeyPair(), false);
-        
+        byte[] hashBytes = Numeric.hexStringToByteArray(messageHash);
+
+        if (hashBytes.length != 32) {
+            throw new IllegalArgumentException("messageHash must be 32 bytes, got " + hashBytes.length);
+        }
+
+        Sign.SignatureData signatureData =
+                Sign.signMessage(hashBytes, credentials.getEcKeyPair(), false);
+
         byte[] r = signatureData.getR();
         byte[] s = signatureData.getS();
         byte v = signatureData.getV()[0];
-        
+
         byte[] signature = new byte[65];
         System.arraycopy(r, 0, signature, 0, 32);
         System.arraycopy(s, 0, signature, 32, 32);
         signature[64] = v;
-        
-        return "0x" + Numeric.toHexString(signature).substring(2);
+
+        return Numeric.toHexString(signature);
     }
 }
 

@@ -3,6 +3,7 @@ package com.polymarket.clob.httphelpers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.polymarket.clob.exceptions.PolyApiException;
 import com.polymarket.clob.types.*;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -14,7 +15,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
@@ -22,14 +22,26 @@ import java.util.zip.GZIPInputStream;
  * HTTP helper functions for API requests
  */
 public final class HttpHelpers {
-    private HttpHelpers() {}
-
-    private static final HttpClient httpClient = HttpClient.newBuilder()
-        .version(HttpClient.Version.HTTP_2)
-            .proxy(ProxySelector.of(InetSocketAddress.createUnresolved("127.0.0.1", 7890)))
-        .build();
-
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final HttpClient httpClient;
+
+    static {
+        String socksProxyHost = System.getProperty("socksProxyHost");
+        String socksProxyPort = System.getProperty("socksProxyPort");
+        if (StringUtils.isNotEmpty(socksProxyHost) && StringUtils.isNotEmpty(socksProxyPort)) {
+            httpClient = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_2)
+                    .proxy(ProxySelector.of(InetSocketAddress.createUnresolved(socksProxyHost, Integer.parseInt(socksProxyPort))))
+                    .build();
+        } else {
+            httpClient = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_2)
+                    .build();
+        }
+    }
+
+    private HttpHelpers() {
+    }
 
     public static Object get(String endpoint, Map<String, String> headers) {
         return request(endpoint, "GET", headers, null);
